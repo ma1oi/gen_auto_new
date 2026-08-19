@@ -1,0 +1,74 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# secrets / credentials notes
+yandex-disk-credentials.md
+test.txt
+
+# local runtime database
+gen_auto/pipeline.db
+gen_auto/pipeline.db-wal
+gen_auto/pipeline.db-shm
+
+# google oauth client + token + legacy csv creds (contain plaintext ftp passwords)
+gen_auto/google-credentials.json
+gen_auto/oauth-client-secret.json
+gen_auto/google-token.json
+gen_auto/.google-refresh-tokens.json
+gen_auto/*.csv
+
+# личные Jira/Whitegen сессии больше не должны попадать в git — креды теперь
+# вводятся per-user на /settings; этот файл держит только общий CACHE_PURGE_*
+gen_auto/config.js
+
+# датированные рабочие папки пайплайна — генератор (скачанные/распакованные
+# архивы задач) и ручники (7-дневный архив загруженного + бэкапы старого
+# содержимого сервера) — рабочие данные, не для git
+gen_auto/генератор_*/
+gen_auto/ручники_*/
+gen_auto/downloads/manual-backups/
+# legacy: staging-папка старой версии "Ручников" (до ручники_DD-MM-YYYY),
+# в текущем коде не используется, но на диске могла остаться
+gen_auto/manual-uploads/
+
+# постоянные логи пайплайна (по дням) — не для git
+gen_auto/logs/
