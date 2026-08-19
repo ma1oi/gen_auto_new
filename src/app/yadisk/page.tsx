@@ -32,6 +32,7 @@ export default function YaDiskPage() {
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [uploading, setUploading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [uploadStatuses, setUploadStatuses] = useState<Record<string, { status: "running" | "ok" | "error" | "skip" | "exists"; reason?: string }>>({});
 
@@ -94,10 +95,37 @@ export default function YaDiskPage() {
     });
   }
 
-  function downloadSelected() {
-    if (!activeDay || activeChecked.length === 0) return;
+  async function downloadSelected() {
+    if (!activeDay || activeChecked.length === 0 || downloading) return;
     const items = activeChecked.map((i) => ({ date: activeDay.date, name: i.name, type: i.type }));
-    window.location.href = `/api/pipeline/yadisk-upload/download-selected?items=${encodeURIComponent(JSON.stringify(items))}`;
+    setDownloading(true);
+    try {
+      const res = await apiFetch("/api/pipeline/yadisk-upload/download-selected", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+
+      const blob = await res.blob();
+      const disposition = res.headers.get("content-disposition") ?? "";
+      const filename = disposition.match(/filename="([^"]+)"/)?.[1] ?? "yadisk-selected.zip";
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      addNotification(
+        `Ошибка скачивания: ${err instanceof Error ? err.message : String(err)}`,
+        "error"
+      );
+    } finally {
+      setDownloading(false);
+    }
   }
 
   async function upload() {
@@ -383,12 +411,12 @@ export default function YaDiskPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={activeChecked.length === 0}
+                        disabled={downloading || activeChecked.length === 0}
                         onClick={downloadSelected}
                         className="border-slate-700/50 text-slate-300 hover:bg-slate-700/40 disabled:opacity-40 h-8 text-xs gap-1.5"
                       >
-                        <Download className="w-3.5 h-3.5" />
-                        Скачать
+                        {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                        {downloading ? "Собираю архив..." : "Скачать"}
                       </Button>
                       <Button
                         size="sm"

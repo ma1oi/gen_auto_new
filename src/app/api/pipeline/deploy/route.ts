@@ -23,7 +23,9 @@ export async function POST(request: Request) {
       const deployedDomains: string[] = [];
       let errorCount = 0;
 
-      const child = spawn("python3", ["deploy.py"], {
+      // Python буферизует stdout, когда он подключён к pipe. Запускаем в
+      // unbuffered-режиме, чтобы логи и deploy-status SSE приходили сразу.
+      const child = spawn("python3", ["-u", "deploy.py"], {
         cwd: genAutoDir,
         env: {
           ...process.env,

@@ -27,13 +27,13 @@ function zipStagingDir(stagingDir: string, destZipPath: string): Promise<void> {
 // папку symlink на каждый источник под нужным именем и один раз вызываем
 // `zip -r` — Info-ZIP по умолчанию разыменовывает symlink'и (и на файлы, и на
 // папки), так что в архиве оказываются настоящие данные, а не битые ссылки.
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
+export async function POST(request: Request) {
   let items: SelectedItem[];
   try {
-    items = JSON.parse(searchParams.get("items") ?? "[]");
+    const body = (await request.json()) as { items?: SelectedItem[] };
+    items = body.items ?? [];
   } catch {
-    return new Response("Некорректный параметр items", { status: 400 });
+    return new Response("Некорректное тело запроса", { status: 400 });
   }
   if (!Array.isArray(items) || items.length === 0) {
     return new Response("Список items пуст", { status: 400 });
