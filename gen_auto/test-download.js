@@ -18,6 +18,7 @@ const WHITEGEN_AUTH = process.env.WHITEGEN_AUTH || fileConfig.WHITEGEN_AUTH;
 const JIRA_USER = process.env.JIRA_USER || fileConfig.JIRA_USER;
 
 const db = require('./db');
+let loadGenerationIndex;
 
 const HEADERS = {
   "accept": "application/json, application/zip, application/octet-stream, */*",
@@ -34,28 +35,22 @@ const HEADERS = {
   "Referer": "https://whitegen.org/list"
 };
 
-async function findGeneration(number) {
-  let page = 1;
-  while (true) {
-    const res = await fetch(
-      `https://whitegen.org/api/v1/generator/list?page=${page}&per_page=10`,
-      { headers: HEADERS, body: null, method: 'GET' }
-    ).then(r => r.json());
-
-    const items = res.data || [];
-    const found = items.find(item => item.number === number);
-    if (found) return found;
-
-    if (items.length < 10) return null;
-    page++;
-  }
+async function fetchGenerationPage(page, perPage) {
+  const response = await fetch(
+    `https://whitegen.org/api/v1/generator/list?page=${page}&per_page=${perPage}`,
+    { headers: HEADERS, body: null, method: 'GET', signal: AbortSignal.timeout(15000) }
+  );
+  if (!response.ok) throw new Error(`Whitegen list: HTTP ${response.status}`);
+  const payload = await response.json();
+  return payload.data || [];
 }
 
 async function downloadGen(gen) {
   const response = await fetch(
     `https://whitegen.org/api/v1/generator/download/${gen.id}`,
-    { headers: HEADERS, body: null, method: 'GET' }
+    { headers: HEADERS, body: null, method: 'GET', signal: AbortSignal.timeout(30000) }
   );
+  if (!response.ok) throw new Error(`Whitegen download ${gen.number}: HTTP ${response.status}`);
 
   const disposition = response.headers.get('content-disposition') || '';
   const match = disposition.match(/filename[^;=\n]*=(?:['"]?)([^'"\n]+)/i);
@@ -79,9 +74,13 @@ async function main() {
 
   if (!fs.existsSync(SAVE_DIR)) fs.mkdirSync(SAVE_DIR, { recursive: true });
 
+  ({ loadGenerationIndex } = await import('./whitegen-generation-index.mjs'));
+  console.log('Loading Whitegen generation list...');
+  const generationIndex = await loadGenerationIndex(filteredKeys, fetchGenerationPage, 100);
+
   for (const key of filteredKeys) {
     console.log(`Looking for ${key}...`);
-    const gen = await findGeneration(key);
+    const gen = generationIndex.get(key);
     if (!gen) {
       console.log(`${key}: not found, skipping`);
       continue;
