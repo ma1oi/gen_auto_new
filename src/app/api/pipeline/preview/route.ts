@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCredentials } from "@/lib/server-credentials";
-import { isCreated } from "@/lib/pipeline-db";
+import { isArchived, isCreated } from "@/lib/pipeline-db";
 import { parseTaskInfo } from "@/lib/parse-task-info";
 import type { PreviewTask } from "@/types";
 
@@ -33,6 +33,7 @@ export async function GET(request: Request) {
   const filtered = issues.filter((issue) => {
     if (issue.statusId !== "13909") return false;
     if (isCreated(issue.key)) return false;
+    if (isArchived(issue.key)) return false;
     const scenariy = issue.extraFields.find((f) => f.id === "customfield_14604");
     return scenariy?.html === "Вайты из генератора";
   });

@@ -1,5 +1,6 @@
 import path from "path";
 import Database from "better-sqlite3";
+import { getCompletedKeysInSelection } from "./completed-task-selection.mjs";
 
 const db = new Database(path.join(process.cwd(), "gen_auto", "pipeline.db"));
 db.pragma("journal_mode = WAL");
@@ -36,6 +37,10 @@ if (!existingColumns.has("force_redeploy")) db.exec("ALTER TABLE tasks ADD COLUM
 
 export function isCreated(key: string): boolean {
   return !!db.prepare("SELECT 1 FROM tasks WHERE jira_key = ?").get(key);
+}
+
+export function isArchived(key: string): boolean {
+  return !!db.prepare("SELECT 1 FROM deployed_archive WHERE jira_key = ?").get(key);
 }
 
 export function markCreated(key: string, user: string): void {
@@ -108,12 +113,35 @@ export function getArchivedDomain(key: string): string | null {
   return row?.domain ?? null;
 }
 
-export function clearDeployedTasks(user: string): string[] {
-  const keys = (
+export function clearDeployedTasks(user: string): { deletedKeys: string[]; completedKeys: string[] } {
+  const activeKeys = (
     db.prepare("SELECT jira_key FROM tasks WHERE jira_user = ? AND deployed_at IS NOT NULL").all(user) as {
       jira_key: string;
     }[]
   ).map((r) => r.jira_key);
+  const archivedKeys = (
+    db.prepare("SELECT jira_key FROM deployed_archive WHERE jira_user = ?").all(user) as {
+      jira_key: string;
+    }[]
+  ).map((r) => r.jira_key);
   db.prepare("DELETE FROM tasks WHERE jira_user = ? AND deployed_at IS NOT NULL").run(user);
-  return keys;
+  return {
+    deletedKeys: activeKeys,
+    completedKeys: [...new Set([...activeKeys, ...archivedKeys])],
+  };
+}
+
+export function getCompletedTasks(user: string, currentKeys: string[]): string[] {
+  if (currentKeys.length === 0) return [];
+  const activeKeys = (
+    db.prepare("SELECT jira_key FROM tasks WHERE jira_user = ? AND deployed_at IS NOT NULL").all(user) as {
+      jira_key: string;
+    }[]
+  ).map((r) => r.jira_key);
+  const archivedKeys = (
+    db.prepare("SELECT jira_key FROM deployed_archive WHERE jira_user = ?").all(user) as {
+      jira_key: string;
+    }[]
+  ).map((r) => r.jira_key);
+  return getCompletedKeysInSelection(currentKeys, [...activeKeys, ...archivedKeys]);
 }

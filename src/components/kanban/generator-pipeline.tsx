@@ -88,7 +88,11 @@ export function GeneratorPipeline() {
   async function handleRemoveCreated() {
     setRemovingCreated(true);
     try {
-      const res = await apiFetch("/api/pipeline/clear-deployed", { method: "POST" });
+      const res = await apiFetch("/api/pipeline/clear-deployed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keys: previewTasks.map((task) => task.key) }),
+      });
       const data = (await res.json()) as { deleted: number; keys: string[] };
       const removedKeys = new Set((data.keys ?? []).map((k) => k.toUpperCase()));
       if (removedKeys.size > 0) {
